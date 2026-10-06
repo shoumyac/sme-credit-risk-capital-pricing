@@ -1,0 +1,594 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+
+
+
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{amsmath,amssymb,amsthm,amsfonts}
+\usepackage{bm,mathtools}
+\usepackage{booktabs,multirow,array,tabularx,caption,subcaption,graphicx,float,xcolor,rotating}
+\usepackage{adjustbox}
+\usepackage{enumitem}\setlist{nosep,leftmargin=1.5em}
+\usepackage[bf,sf]{titlesec}
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.6em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.5em}{}
+\usepackage[numbers,sort&compress]{natbib}
+\bibliographystyle{plainnat}
+\usepackage[hidelinks]{hyperref}
+\newcommand{\PD}{\ensuremath{\mathrm{PD}}}
+\newcommand{\LGD}{\ensuremath{\mathrm{LGD}}}
+\newcommand{\EAD}{\ensuremath{\mathrm{EAD}}}
+\newcommand{\RWA}{\ensuremath{\mathrm{RWA}}}
+\newcommand{\EL}{\ensuremath{\mathrm{EL}}}
+
+\newcommand{\BDT}{\textsc{BDT}}
+\newcommand{\EUR}{\textsc{EUR}}
+\newcommand{\AUTHORCHECK}[1]{{\color{red}\textbf{[AUTHORS TO CONFIRM: #1]}}}
+\captionsetup{font=small,labelfont=bf}
+\newcommand{\tabsize}{\footnotesize}
+
+\title{\bfseries From Scores to Capital and Prices:\\
+How Calibration, Selection and Regulatory Treatment Move\\
+Basel III Outcomes in SME Lending}
+\author{Anmita Das\thanks{\texttt{aadas@student.unimelb.edu.au}}
+\quad Shoumya Chowdhury\thanks{Corresponding author: \texttt{shoumyac@student.unimelb.edu.au}}\\[2pt]
+\small Faculty of Engineering and Information Technology, University of Melbourne, Australia}
+\date{}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+Credit scoring research is judged on discrimination, yet a probability of default matters economically only after it passes through a non linear regulatory capital formula, a risk based price and an approval rule. We study that passage on 1{,}200 Bangladeshi SME loan applications (25.25\% twelve month missed payment rate) and replicate the calibration and recalibrator findings on five public credit data sets from five countries (subgroup slope heterogeneity, by contrast, is clearly detectable in the largest of them). Four results stand out. First, calibration is a first order modelling choice. A class balanced logistic score reports a mean default probability of 37.1\% against 25.2\% observed; recalibrating it cuts the Brier score by 17.4\% and raises the share of borrowers priceable under a 22\% rate ceiling from 36.2\% to 48.9\% (five seed means; unweighted training needs no such correction). Isotonic regression, the usual recommendation, collapses the portfolio onto 18 probability values, assigns 28.6\% of borrowers a three basis point default probability, and understates Tier 1 capital by 10.4\%. Second, apparent subgroup calibration disparities are largely sampling noise: after recalibration no subgroup shows significant bias in calibration in the large, the dispersion of subgroup bias and of subgroup discrimination is within what a perfectly calibrated model would produce at these sample sizes, only weak slope heterogeneity (two groups) is detected, and per group recalibration does not pay for its variance. We therefore bound, rather than assume, the capital and price error that undetectable miscalibration could cause (capital between $-$18\% and +38\%, rates between $-$5.2 and +5.3 points). Third, selection matters more than subgroup effects: a model trained on a historically screened sample under predicts default among excluded applicants by 7 to 13 points, and inverse propensity reweighting does not repair it. Fourth, regulatory treatment and the definition of default are first order: classifying these exposures as retail rather than corporate SME lowers mean capital by 38.1\%, and a Basel like default definition (here an illustrative conversion share of one half) moves the priceable share by 13.8 points, so regulatory treatment is larger than the recalibration effect on capital. Risk based pricing under the ceiling turns lending into a screening problem: a flat 18\% rate loses BDT 236 million on the sample while the screened portfolio earns the hurdle return and its default rate falls from 25.2\% to 3.5\% (out of fold). The screen, not the price, produces the fall. The screen also reduces approval of rural borrowers to 39\% against 53\% for urban ones. In a stylised design, a partial credit guarantee that absorbs only unexpected loss restores BDT 195 million of credit at no expected fiscal outlay. All inputs, code and tables are reproducible from a single script chain.
+\bigskip
+
+\noindent\textbf{Keywords:} credit scoring; probability calibration; Basel III IRB; risk adjusted return on capital; SME finance; selection bias; emerging markets; Bangladesh.
+\end{abstract}
+
+\section{Introduction}
+Machine learning credit scoring has advanced almost entirely on rank based metrics \citep{Khandani2010,Lessmann2015}. A lender, however, does not use a rank. It uses a probability to set regulatory capital under the Basel III internal ratings based (IRB) approach \citep{BCBS2017}, to price the loan so that the return on that capital clears a hurdle \citep{Repullo2004,Stoughton2007}, and to decide whether the loan is made at all under any binding rate ceiling. The capital formula is non linear in the probability, the price is a function of the capital, and the approval rule is a threshold on the price. Small errors in a probability are therefore not small errors in an outcome.
+
+Two bodies of work say what can go wrong, but they rarely meet. The calibration literature shows that scores are often miscalibrated, that the damage is hardest to see in small subgroups, and that common training devices such as class weighting distort probabilities \citep{Guo2017,VanCalster2019,Roelofs2022,VanDenGoorbergh2022}. The regulatory finance literature shows that capital and price are sensitive to loss given default, correlation and the definition of default \citep{Tarashev2010,Witzany2008,Altman2005}. We connect them: we follow a single probability through the capital formula, the price and the approval decision, and measure how each upstream modelling choice, and each limitation of the data, moves the economic outcome.
+
+\subsection{Setting and data}
+We use 1{,}200 SME loan applications from Bangladesh (303 defaults, 25.25\%) and, to test generality, five public credit data sets from Germany, Taiwan, the United States, Poland and Australia. Bangladesh is a useful case because a flat or near flat lending rate is common market practice, a statutory ceiling binds, and credit rationing rather than price dispersion is the realistic outcome \citep{Beck2006,Berger2006}.
+
+\subsection{Contributions}
+\begin{enumerate}[label=\textbf{C\arabic*.}]
+\item \textbf{From score to capital, price and decision, with uncertainty.} A complete pipeline from a recalibrated probability to the IRB capital requirement, a RAROC consistent rate and an approval decision under a rate ceiling, with bootstrap intervals on every headline quantity (Section~\ref{sec:headline}).
+\item \textbf{Calibration as a first order choice.} Class balanced weights give a mean default probability of 37.1\% against 25.2\% observed, which removes 13 points of priceable share; the granularity of the recalibrator moves capital by 10\% (Section~\ref{sec:prob}).
+\item \textbf{An honest power analysis of subgroup calibration.} Bootstrap intervals and a parametric null show that apparent group level calibration disparities are mostly noise at these sample sizes, and we bound the capital and price error that undetectable miscalibration could produce (Section~\ref{sec:subgroup}).
+\item \textbf{A selection experiment.} A truncation experiment on labelled data measures the bias a historically screened training sample imparts to the excluded population, and tests a standard repair (Section~\ref{sec:selection}).
+\item \textbf{Regulatory treatment, default definition and loss given default.} Retail versus corporate classification and a Basel like default definition move the results by more than the hurdle rate, while collateral linked LGD mainly redistributes access across borrowers (Section~\ref{sec:capital}).
+\item \textbf{Screening versus pricing.} We decompose the benefit of risk based pricing under a ceiling into a screening component and a price component, add take up and adverse selection, a downturn, and a thresholded fairness audit (Sections~\ref{sec:regimes} and~\ref{sec:robust}).
+\item \textbf{A priced policy remedy.} A partial credit guarantee design that absorbs only unexpected loss (Section~\ref{sec:guarantee}).
+\item \textbf{Five country replication.} The calibration, class weighting and recalibrator findings are replicated on five public data sets (Section~\ref{sec:external}).
+\end{enumerate}
+
+\subsection{Roadmap}
+Section~\ref{sec:related} reviews related work, Section~\ref{sec:data} the data, Section~\ref{sec:method} the methods. Sections~\ref{sec:prob} to~\ref{sec:guarantee} report results, Section~\ref{sec:external} the replication, Section~\ref{sec:disc} discusses what generalises and what remains open, and Section~\ref{sec:conc} concludes.
+
+\section{Related work}\label{sec:related}
+\paragraph{Calibration in credit scoring.} Calibration means that predicted probabilities match observed frequencies. Modern classifiers are often miscalibrated \citep{Guo2017}, and post hoc scaling by Platt's logistic method or isotonic regression is the standard remedy \citep{Platt1999,Niculescu2005,ZadroznyElkan2002}. In clinical prediction, calibration has been called the Achilles heel of predictive analytics \citep{VanCalster2019}, and rebalancing the classes to improve ranking is shown to damage calibration \citep{VanDenGoorbergh2022}. Prior shift between a training and a deployment prevalence has a closed form correction \citep{Saerens2002,Elkan2001}. Calibration error estimators are themselves biased in small samples, and detecting miscalibration of ten percentage points in a group of a few hundred observations is difficult \citep{Roelofs2022}. Credit studies that report calibration typically do so pooled; we are not aware of one that reports subgroup calibration with intervals and a sampling null, and then propagates the result to capital.
+
+\paragraph{Fairness and selection.} Group fairness is usually assessed on thresholded decisions \citep{Hardt2016,Kleinberg2017,Chouldechova2017,Pleiss2017}; in credit, \citet{Kozodoi2022} study fairness and profit trade offs. Models are trained on accepted applicants only, so default behaviour of rejected applicants is unobserved, which biases scorecards \citep{BanasikCrook2007}. We measure that bias directly in a controlled truncation experiment.
+
+\paragraph{Capital, pricing and SME lending.} The IRB risk weight function rests on the asymptotic single factor model \citep{Vasicek2002,Gordy2003}; \citet{Tarashev2010} show parameter uncertainty has first order effects and \citet{Witzany2008} study sensitivity to the default definition. Risk adjusted return on capital underpins risk based pricing \citep{Froot1998,Stoughton2007,Saunders2010}, and \citet{Repullo2004} characterise loan prices under capital requirements. \citet{Altman2005} and \citet{Vozzella2020} examine SME capital and regulatory correlations. SMEs in emerging markets face information asymmetry and rationing \citep{Beck2006,Berger2006,Petersen1994,StiglitzWeiss1981}; \citet{Bjorkegren2020} and \citet{Berg2020} study alternative data. The closest study is \citet{Durango2024}, who price microcredit using IRB capital; they do not treat a binding ceiling, regulatory treatment, or recalibration.
+
+\paragraph{Gap.} We know of no study that (i) follows a recalibrated probability through capital, price and approval; (ii) quantifies, with a sampling null, how much subgroup miscalibration matters to capital and price; (iii) measures selection bias on labelled data and its capital consequence; and (iv) replicates the calibration findings across countries.
+
+\section{Data}\label{sec:data}
+\subsection{Bangladeshi SME sample}
+The sample contains $n=1200$ SME loan applications from 2022 to 2023 with firm and owner characteristics, loan request characteristics, four text fields and a binary outcome recording whether the firm missed any scheduled payment in the following twelve months (prevalence 25.25\%, 303 events). Inputs to the capital formula are the disbursed amount (exposure at default, EAD), the requested tenor clipped to one to five years (maturity $M$, which makes the pipeline a foundation LGD, advanced maturity hybrid), and annual sales (twelve times monthly revenue at 100 BDT per Euro, clipped to the regulatory five to fifty million Euro range). The records were obtained from BASIC Bank Limited and Bangladesh Bank for this research, with permission from the Ministry of Finance of Bangladesh, which was shown to the banks before the data were released. \AUTHORCHECK{add how the extract was de-identified, and whether the four free text fields were supplied by the banks or generated afterwards}
+
+\subsection{External data sets}
+To test generality we use five public credit data sets: the German credit data \citep{Hofmann1994} (1{,}000 consumer loans), the Taiwan credit card default data \citep{Yeh2009} (30{,}000), the United States Give Me Some Credit data (150{,}000 borrowers), the Polish companies bankruptcy data (three year horizon, listed firms) and the Australian credit approval data (690). They were retrieved from OpenML and the UCI repository. They differ in borrower type, prevalence and size; they carry no loss given default, and some carry no exposure amount, so we use unit exposure where needed and report capital per unit of exposure. They test calibration and capital mechanics, not the Bangladeshi policy results.
+
+\subsection{Ethics}
+Permission for the research was granted by the Ministry of Finance of Bangladesh. The research extract contains no personal identifiers and may be shared publicly. \AUTHORCHECK{add an ethics approval or exemption reference if one exists}
+
+\section{Methodology}\label{sec:method}
+\subsection{Probability of default}
+Let $y_i\in\{0,1\}$ be the twelve month outcome. A logistic regression on the structured features (ten numeric, nine categorical) with class balanced weights and L2 penalty ($C=1$) is fitted by stratified five fold cross validation (seed 42) and produces an out of fold score $\hat p_i$ \citep{Pedregosa2011}. Class balancing implicitly moves the training prior to one half, so $\hat p_i$ is not a default probability. We compare four ways of using it: the raw score; Platt scaling \citep{Platt1999}, a logistic regression of $y$ on $\mathrm{logit}(\hat p)$; isotonic regression \citep{ZadroznyElkan2002}; and the analytic prior correction $\mathrm{odds}\times\pi/(1-\pi)$ \citep{Saerens2002}. Probabilities are clipped to $[0.0003,0.9999]$. Where the screen must not see its own labels we refit the recalibrator nested within the folds.
+
+\subsection{Calibration and subgroup diagnostics}
+We report the Brier score \citep{Brier1950}, log loss, the five bin expected calibration error, the calibration slope and intercept, and calibration in the large (CIL, mean prediction minus observed rate) \citep{Steyerberg2010}. For each of 18 subgroups (four sectors, seven divisions, urban/rural, five education levels; $n$ from 85 to 936) we compute percentile bootstrap intervals (1{,}000 resamples), a $z$ test of CIL under the null that the model is calibrated in the group with Holm correction, and a parametric null: outcomes are redrawn from the model's own probabilities (so the model is perfectly calibrated in every group), and the range across groups of the slope, CIL and AUC is recorded 1{,}000 times. The observed range is compared with that null.
+
+\subsection{Basel III IRB capital}
+For borrower $i$ with recalibrated $\PD_i$, annual sales $S_i$ in Euro millions and maturity $M_i$, the SME asset correlation is
+\begin{equation}
+R_i = 0.12\,w_i + 0.24\,(1-w_i) - 0.04\Bigl(1-\tfrac{S_i-5}{45}\Bigr),\qquad w_i=\tfrac{1-e^{-50\PD_i}}{1-e^{-50}},
+\end{equation}
+with the maturity adjustment $\mathrm{MA}_i=\frac{1+(M_i-2.5)b_i}{1-1.5b_i}$, $b_i=(0.11852-0.05478\ln\PD_i)^2$, and the capital requirement per unit of exposure
+\begin{equation}
+K_i=\LGD\Bigl[\Phi\Bigl(\tfrac{\Phi^{-1}(\PD_i)+\sqrt{R_i}\,\Phi^{-1}(0.999)}{\sqrt{1-R_i}}\Bigr)-\PD_i\Bigr]\mathrm{MA}_i .
+\end{equation}
+Risk weighted assets are $\RWA_i=12.5\,K_i\,\EAD_i$ and Tier 1 capital is $0.06\,\RWA_i$. Because sales are below the Euro 5 million floor for every borrower the firm size term is pinned at its maximum. We also compute the other retail function ($R=0.03w^{r}+0.16(1-w^{r})$ with decay 35 and no maturity adjustment) and the standardised approach.
+
+\subsection{Risk based pricing and the approval rule}
+Expected loss is $\EL_i=\PD_i\,\LGD$. The RAROC consistent rate equates the return on capital to a hurdle $h$:
+\begin{equation}
+r_i = r_f+s_F+c_O+\frac{\EL_i+h\,K_i}{1-\PD_i},
+\end{equation}
+with $r_f=9\%$, funding spread $s_F=2\%$, operating cost $c_O=3\%$, $h=15\%$, $\LGD=45\%$. A borrower is priceable if $r_i\le\bar r=22\%$. The ceiling is an assumed stylised value between the 2022 to 2023 scheduled bank cap and the Microcredit Regulatory Authority cap \citep{BangladeshBank2024,BangladeshBank2020}; Section~\ref{sec:capital} varies it. Profit per borrower is $[(r_i-r_f-s_F-c_O)(1-\PD_i)-\PD_i\LGD]\EAD_i$. Two regimes are compared: a flat 18\% rate for all, and RAROC pricing for the priceable set.
+
+\subsection{Extensions that address data limitations}
+\paragraph{Uncertainty.} Headline quantities are bootstrapped over borrowers with the recalibrator refitted in each resample (1{,}000 resamples).
+\paragraph{Selection.} A historical scorecard rank is built from profit to loan ratio, collateral and late payment history. The least attractive $q$ of applicants are treated as historically rejected; the model and its recalibrator are trained on the accepted only and evaluated on the rejected, whose labels we observe. A random exclusion of the same size is the control, and inverse propensity weights (acceptance modelled on observables) are the standard repair.
+\paragraph{Take up and adverse selection.} Take up is $1/(1+e^{k(r-0.18)\cdot100})$ and the realised default odds of those who accept rise by $e^{\gamma(r-0.18)\cdot100}$, over $k\in\{0,0.15,0.3\}$ and $\gamma\in\{0,0.03,0.06\}$ per percentage point.
+\paragraph{Downturn.} Default odds are scaled by $\{1,1.5,2,3\}$ and LGD raised to 0.55.
+\paragraph{Collateral linked LGD.} LGD is 0.60, 0.45 and 0.30 for low, moderate and high collateral (and a steeper scheme).
+\paragraph{Thresholded fairness.} Approval rates, approval rates among borrowers who did not default, and the ratio of lowest to highest group approval are computed for each attribute with bootstrap intervals.
+\paragraph{Default definition.} The label is any missed payment, wider than the Basel 90 days past due criterion. Let $\phi$ be the share of missed payment events that qualify; the prior shift correction maps $\PD$ to a probability with mean $\phi\bar\pi$.
+\paragraph{Reproducibility.} All results come from Python 3 scripts with scikit learn \citep{Pedregosa2011} and fixed seeds; each table in this paper is generated directly from the output files.
+
+\section{Results I: probabilities}\label{sec:prob}
+\subsection{Discrimination and the headline numbers}\label{sec:headline}
+The pooled out of fold ROC AUC is 0.899 (95\% bootstrap interval 0.880 to 0.916). Table~\ref{tab:ci} gives the headline economic quantities with bootstrap intervals. The point estimates are tight enough to support the qualitative claims: the share priceable is between 45\% and 54\%, Tier 1 capital between BDT 173 and 203 million, and the flat regime loses between BDT 198 and 276 million.
+\begin{table}[H]\centering\tabsize\caption{Headline quantities under Platt recalibration with 95\% bootstrap intervals.}\label{tab:ci}
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{lrr}
+\toprule
+Quantity & Estimate & 95\% bootstrap interval \\
+\midrule
+ROC AUC & 0.899 & [0.880, 0.916] \\
+Mean capital requirement $K$ (\%) & 9.44 & [8.73, 10.08] \\
+Total Tier 1 capital (BDT m) & 188.7 & [173.5, 203.1] \\
+Share priceable under the cap (\%) & 49.6 & [44.8, 54.3] \\
+Default rate in priceable pool (\%) & 3.36 & [2.14, 4.41] \\
+Flat 18\% regime profit (BDT m) & $-$236 & [$-$276, $-$198] \\
+Median RAROC rate (\%) & 22.3 & [20.2, 24.3] \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}\end{table}
+
+\subsection{Class weighting breaks the probability}
+The balanced weight score has a mean of 37.1\% (seed 42; 36.9\% averaged over five seeds) against an observed rate of 25.25\% and a calibration slope of 0.90 with intercept $-$1.05. Used directly as a probability it makes only 36.2\% of borrowers priceable; recalibrated, 48.9\%. Table~\ref{tab:cw} repeats this over five seeds and compares unweighted training. Unweighted logistic regression is already close to calibrated on the mean (25.2\%), and the analytic prior correction removes most but not all of the bias (ECE 0.022 against 0.012 for Platt), because penalised logistic regression shrinks scores. Discrimination is unchanged by weighting. The Brier score of the Platt probabilities is 17.4\% lower than that of the balanced weight score, but about the same as that of an unweighted model; the gain is the removal of a self inflicted distortion. The mechanism is the one in the clinical literature \citep{VanDenGoorbergh2022}; here it shows up in capital and approval.
+\begin{table}[H]\centering\tabsize\caption{Class weighting and recalibration, mean of five cross validation seeds (Bangladeshi data).}\label{tab:cw}
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{llrrrrr}
+\toprule
+Training weights & Probability used & Mean PD (\%) & Brier & ECE & Tier 1 (BDT m) & Priceable (\%) \\
+\midrule
+Balanced & Platt recalibration & 25.3 & 0.110 & 0.012 & 191.7 & 48.9 \\
+Balanced & Analytic prior correction & 25.1 & 0.111 & 0.022 & 178.1 & 51.6 \\
+Balanced & Raw score used as PD & 36.9 & 0.132 & 0.117 & 184.0 & 36.2 \\
+None & Platt recalibration & 25.2 & 0.110 & 0.015 & 191.7 & 48.5 \\
+None & Raw score used as PD & 25.2 & 0.110 & 0.021 & 183.1 & 50.6 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}\end{table}
+
+\subsection{The recalibrator}\label{sec:recal}
+Isotonic regression fitted to 1{,}200 observations is a step function. Table~\ref{tab:recal} shows it yields 18 distinct probabilities, with 343 borrowers (28.6\%) at the three basis point floor, none of whom defaulted, and a Brier score lower than Platt in sample (0.104 versus 0.108) that is not preserved out of fold (0.109 versus 0.109, the same to three decimals). The capital formula inherits the steps: mean $K$ is 8.33\% against 9.44\% and total Tier 1 is BDT 169 million against 189 million. A probability of three basis points is not credible for a borrower population with a quarter defaulting; it is an artefact of the fit. We therefore use Platt scaling as the primary recalibrator and report isotonic results alongside. Figure~\ref{fig:cal} shows the reliability curves and the atoms.
+\begin{table}[H]\centering\tabsize\setlength{\tabcolsep}{3pt}\caption{Probability estimates and downstream consequences. ``Nested'' refits the recalibrator on four folds and applies it to the fifth.}\label{tab:recal}
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{lrrrrrrrrr}
+\toprule
+PD estimate & Mean PD (\%) & Brier & AUC & Distinct PDs & At 3 bp & Mean $K$ (\%) & Tier 1 (BDT m) & Priceable (\%) & Default in pool (\%) \\
+\midrule
+Balanced-weight score & 37.1 & 0.131 & 0.899 & 1,200 & -- & -- & -- & -- & -- \\
+Isotonic & 25.3 & 0.104 & 0.904 & 18 & 343 & 8.33 & 169.0 & 45.0 & 1.85 \\
+Platt & 25.3 & 0.108 & 0.899 & 1,199 & 2 & 9.44 & 188.7 & 49.6 & 3.36 \\
+Platt, nested & 25.3 & 0.109 & 0.897 & 1,197 & 4 & 9.43 & 188.5 & 49.4 & 3.54 \\
+Isotonic, nested & 25.3 & 0.109 & 0.893 & 87 & 342 & 8.30 & 168.8 & 45.9 & 2.72 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}\end{table}
+\begin{figure}[H]\centering\includegraphics[width=.92\textwidth]{figures/fig1_calibration.png}\caption{(a) Reliability of the balanced score, Platt and isotonic probabilities in decile bins. (b) Distribution of recalibrated PDs.}\label{fig:cal}\end{figure}
+
+\section{Results II: are subgroups miscalibrated?}\label{sec:subgroup}
+\subsection{Intervals and a sampling null}
+Table~\ref{tab:sub} and Figure~\ref{fig:forest} report calibration and discrimination for the 18 subgroups with bootstrap intervals. For the balanced score every subgroup is significantly over predicted (Holm adjusted, 18 of 18), by 9.9 to 13.9 percentage points; this is the uniform class weighting bias, not a group specific effect. After Platt recalibration 0 of 18 subgroups differ significantly from calibration in the large.
+
+The dispersion across groups is what a calibrated model would produce by chance. Table~\ref{tab:null} compares observed ranges with the parametric null. The range of subgroup CIL is 4.0 points against a null median of 8.7; the range of subgroup AUC is 0.101 against a null median of 0.073 ($p=0.13$); the range of slopes is 1.05 against a null median of 0.56, marginally outside the null at the five percent level ($p=0.043$ for the balanced score, 0.038 for Platt). The slope signal comes from two groups: Barisal (slope near 1.9 for Platt, interval wide, $n=102$) and higher secondary education owners (slope near 0.77). We read this as weak evidence of slope heterogeneity, not as a calibration disparity between groups. A conclusion that subgroup AUC or calibration ``varies'' on a sample of this size would be an over reading.
+\begin{table}[H]\centering\tabsize\setlength{\tabcolsep}{3pt}\caption{Subgroup calibration and discrimination with 95\% bootstrap intervals. CIL is predicted minus observed default rate. Out of fold scores.}\label{tab:sub}
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{lrrrrrr}
+\toprule
+Subgroup & $n$ & Observed (\%) & Raw CIL (pp) & Platt CIL (pp) & Platt slope & AUC \\
+\midrule
+Agriculture & 205 & 28.8 & 13.8 [8.9, 18.8] & 0.8 [$-$4.1, 5.3] & 0.85 [0.66, 1.13] & 0.87 [0.81, 0.92] \\
+Manufacturing & 337 & 24.3 & 11.4 [7.7, 15.1] & $-$0.4 [$-$4.0, 3.2] & 0.94 [0.75, 1.22] & 0.89 [0.85, 0.93] \\
+Retail & 353 & 23.5 & 11.3 [8.3, 14.5] & $-$0.2 [$-$3.2, 2.8] & 1.18 [0.98, 1.51] & 0.92 [0.89, 0.95] \\
+Services & 305 & 25.9 & 11.9 [8.0, 15.7] & 0.2 [$-$3.5, 3.7] & 1.03 [0.86, 1.28] & 0.91 [0.87, 0.94] \\
+\midrule
+Barisal & 102 & 23.5 & 9.9 [4.8, 15.1] & $-$1.7 [$-$7.0, 3.7] & 1.93 [1.48, 3.48] & 0.95 [0.91, 0.99] \\
+Chittagong & 234 & 23.5 & 12.0 [7.8, 16.1] & 0.3 [$-$4.1, 4.3] & 0.95 [0.77, 1.24] & 0.88 [0.83, 0.92] \\
+Dhaka & 405 & 23.7 & 12.0 [8.7, 15.3] & 0.6 [$-$2.8, 3.6] & 0.91 [0.75, 1.12] & 0.90 [0.86, 0.93] \\
+Khulna & 161 & 31.1 & 11.2 [6.1, 16.2] & $-$1.1 [$-$6.1, 3.9] & 1.10 [0.82, 1.60] & 0.92 [0.86, 0.96] \\
+Rajshahi & 123 & 27.6 & 13.6 [6.8, 20.2] & $-$0.1 [$-$6.5, 6.1] & 0.92 [0.64, 1.39] & 0.87 [0.79, 0.93] \\
+Rangpur & 90 & 26.7 & 11.5 [4.7, 18.7] & $-$0.0 [$-$6.9, 6.1] & 1.12 [0.78, 2.02] & 0.91 [0.84, 0.97] \\
+Sylhet & 85 & 23.5 & 13.1 [5.6, 21.3] & 0.6 [$-$7.0, 8.2] & 0.90 [0.61, 1.57] & 0.86 [0.77, 0.94] \\
+\midrule
+Rural & 264 & 35.2 & 12.6 [8.2, 16.8] & $-$0.3 [$-$4.4, 3.6] & 1.01 [0.81, 1.31] & 0.90 [0.86, 0.94] \\
+Urban & 936 & 22.4 & 11.7 [9.5, 13.9] & 0.1 [$-$2.0, 2.0] & 1.00 [0.88, 1.15] & 0.89 [0.87, 0.91] \\
+\midrule
+Bachelor's & 248 & 27.4 & 11.3 [6.9, 15.3] & $-$0.6 [$-$4.6, 3.2] & 1.14 [0.90, 1.55] & 0.92 [0.88, 0.95] \\
+Higher Secondary & 295 & 25.4 & 13.9 [9.6, 17.9] & 1.3 [$-$2.8, 5.5] & 0.77 [0.61, 0.99] & 0.85 [0.80, 0.90] \\
+Master's & 164 & 23.8 & 11.8 [6.5, 16.8] & $-$0.1 [$-$5.4, 4.9] & 1.01 [0.79, 1.39] & 0.89 [0.84, 0.94] \\
+Primary & 229 & 24.5 & 10.9 [6.7, 15.2] & $-$0.3 [$-$4.5, 3.7] & 1.09 [0.87, 1.47] & 0.92 [0.88, 0.95] \\
+Secondary & 264 & 24.6 & 11.1 [7.3, 15.1] & $-$0.6 [$-$4.4, 2.9] & 1.16 [0.91, 1.54] & 0.92 [0.88, 0.95] \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}\end{table}
+\begin{figure}[H]\centering\includegraphics[width=\textwidth]{figures/fig2_subgroup_forest.png}\caption{Subgroup calibration in the large, calibration slope and AUC with bootstrap intervals.}\label{fig:forest}\end{figure}
+\begin{table}[H]\centering\tabsize\caption{Observed dispersion across the 18 subgroups versus a perfectly calibrated null (1{,}000 draws).}\label{tab:null}
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{llrrrr}
+\toprule
+Scores & Statistic & Observed & Null median & Null 95th pct & $p$ \\
+\midrule
+Balanced-weight score & Slope range & 1.05 & 0.56 & 1.00 & 0.043 \\
+ & CIL range (pp) & 4.0 & 8.7 & 13.4 & 0.997 \\
+ & AUC range & 0.101 & 0.073 & 0.115 & 0.128 \\
+Platt & Slope range & 1.16 & 0.60 & 1.11 & 0.038 \\
+ & CIL range (pp) & 3.0 & 8.1 & 12.6 & 1.000 \\
+ & AUC range & 0.101 & 0.085 & 0.139 & 0.306 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}\end{table}
+
+\subsection{Does recalibrating per group help?}
+Table~\ref{tab:recgrp} compares global Platt and isotonic recalibration with a Platt model that adds group intercepts (unpenalised and shrunk) and with fully group specific Platt models, all cross fitted over ten fold assignments. Group intercepts reduce the largest absolute CIL across groups from 0.3 to 1.6 percentage points under global Platt to 0.1 to 0.3 points, but the pooled Brier score and log loss are slightly worse in every case: the variance cost of estimating group parameters from 85 to 936 observations is not repaid. Per group recalibration is therefore not recommended on these data unless a group is known to differ for a substantive reason.
+\begin{table}[H]\centering\tabsize\caption{Cross fitted comparison of recalibrators by attribute (mean of ten fold assignments).}\label{tab:recgrp}
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{llrrrr}
+\toprule
+Attribute & Recalibrator & Brier & Log loss & Max $|$CIL$|$ (pp) & Mean $|$CIL$|$ (pp) \\
+\midrule
+Sector & Global Platt & 0.1081 & 0.337 & 0.76 & 0.39 \\
+ & Global isotonic & 0.1094 & 0.344 & 0.87 & 0.37 \\
+ & Platt plus group intercept & 0.1091 & 0.340 & 0.11 & 0.06 \\
+ & Same, shrunk (L2) & 0.1090 & 0.340 & 0.10 & 0.06 \\
+ & Group-specific Platt & 0.1096 & 0.341 & 0.13 & 0.08 \\
+\midrule
+Division & Global Platt & 0.1081 & 0.337 & 1.64 & 0.62 \\
+ & Global isotonic & 0.1094 & 0.344 & 1.59 & 0.66 \\
+ & Platt plus group intercept & 0.1100 & 0.342 & 0.32 & 0.13 \\
+ & Same, shrunk (L2) & 0.1098 & 0.342 & 0.34 & 0.14 \\
+ & Group-specific Platt & 0.1105 & 0.344 & 0.40 & 0.15 \\
+\midrule
+Location type & Global Platt & 0.1081 & 0.337 & 0.34 & 0.22 \\
+ & Global isotonic & 0.1094 & 0.344 & 0.33 & 0.19 \\
+ & Platt plus group intercept & 0.1086 & 0.338 & 0.12 & 0.07 \\
+ & Same, shrunk (L2) & 0.1086 & 0.338 & 0.12 & 0.07 \\
+ & Group-specific Platt & 0.1088 & 0.339 & 0.18 & 0.10 \\
+\midrule
+Owner education & Global Platt & 0.1081 & 0.337 & 1.35 & 0.58 \\
+ & Global isotonic & 0.1094 & 0.344 & 1.30 & 0.57 \\
+ & Platt plus group intercept & 0.1091 & 0.340 & 0.15 & 0.07 \\
+ & Same, shrunk (L2) & 0.1090 & 0.340 & 0.15 & 0.07 \\
+ & Group-specific Platt & 0.1091 & 0.341 & 0.21 & 0.10 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}\end{table}
+
+\subsection{What undetectable miscalibration could cost}
+Failing to detect group miscalibration does not prove its absence. We therefore take each group's confidence limits on CIL as the largest plausible hidden error, shift the group's PDs accordingly, and recompute capital and the median rate (Table~\ref{tab:bound}). Hidden errors of the size the data cannot exclude would change group capital by $-$18\% to +38\% and group rates by $-$5.2 to +5.3 percentage points. These bounds are wide because the groups are small, which is the practical meaning of the small subgroup limitation in the literature.
+\begin{table}[H]\centering\tabsize\caption{Range across groups of the capital and rate error if the group's PD were mis-stated by the limit of its 95\% interval for CIL.}\label{tab:bound}
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{lrrrr}
+\toprule
+Attribute & Capital error, PD under-stated (\%) & Capital error, PD over-stated (\%) & Rate error, under-stated (pp) & Rate error, over-stated (pp) \\
+\midrule
+Sector & $-$13 to $-$9 & 21 to 24 & $-$3.1 to $-$2.2 & 1.9 to 3.7 \\
+Division & $-$18 to $-$12 & 22 to 38 & $-$5.2 to $-$1.9 & 2.3 to 5.3 \\
+Location type & $-$9 to $-$8 & 15 to 16 & $-$4.0 to $-$1.4 & 1.3 to 3.0 \\
+Owner education & $-$16 to $-$9 & 18 to 31 & $-$3.8 to $-$2.0 & 1.9 to 3.7 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}\end{table}
+
+\section{Results III: selection}\label{sec:selection}
+All models in this literature are fitted on borrowers who were accepted. Table~\ref{tab:trunc} and Figure~\ref{fig:trunc} report the truncation experiment. When training excludes applicants by a historical scorecard, the model under predicts default among the excluded by 7.0 to 12.7 percentage points across the five exclusion shares even though its AUC on them remains 0.83 to 0.85: ranking survives, calibration does not. A random exclusion of the same size leaves bias within 2.0 points, so the bias is due to selection rather than to the smaller sample. Inverse propensity weighting based on observables does not help here (bias $-$18.7 to $-$8.1 points), because the historical rule screens on the very features the propensity model sees and leaves little overlap. The capital consequence is not clear cut: capital is concave in PD, and Tier 1 estimated on the excluded group differs from the full sample reference by a similar amount under random exclusion, so we do not read a capital error from this experiment. The clear consequence is on PD, and hence on the price offered to the riskiest applicants. In practice the through-the-door population is riskier than the booked one and a model trained on bookings will understate its PD; we flag this as a limitation that no analysis without rejected outcomes can remove, and offer the experiment as a way to size it.
+\begin{table}[H]\centering\tabsize\setlength{\tabcolsep}{3pt}\caption{Truncation experiment (three of the five exclusion shares shown). Models are trained on accepted applicants and evaluated on the excluded.}\label{tab:trunc}
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{llrrrrrr}
+\toprule
+Exclusion rule & Excluded & $n$ excluded & Observed (\%) & Predicted (\%) & Bias (pp) & AUC & Bias with IPW (pp) \\
+\midrule
+Scorecard cut & 10\% & 120 & 66.7 & 58.9 & $-$7.8 & 0.828 & $-$9.4 \\
+ & 30\% & 360 & 50.0 & 38.5 & $-$11.5 & 0.836 & $-$14.5 \\
+ & 50\% & 600 & 39.0 & 26.3 & $-$12.7 & 0.844 & $-$18.7 \\
+Random cut & 10\% & 120 & 27.5 & 29.0 & 1.5 & 0.940 & 1.5 \\
+ & 30\% & 360 & 24.4 & 23.2 & $-$1.2 & 0.896 & $-$1.3 \\
+ & 50\% & 600 & 23.7 & 25.6 & 2.0 & 0.878 & 1.7 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}\end{table}
+\begin{figure}[H]\centering\includegraphics[width=.92\textwidth]{figures/fig6_truncation.png}\caption{Bias on the excluded applicants by the share excluded.}\label{fig:trunc}\end{figure}
+
+\section{Results IV: capital, pricing and regulatory treatment}\label{sec:capital}
+\subsection{Capital and prices}
+With Platt probabilities the mean capital requirement is 9.44\% of exposure, mean RWA BDT 2.62 million, mean Tier 1 BDT 157 thousand per applicant and total Tier 1 BDT 189 million. The median RAROC rate is 22.3\% and 49.6\% of borrowers are priceable under the 22\% ceiling, representing BDT 1196 million of credit. Capital peaks and then falls with PD because expected loss is deducted (Figure~\ref{fig:capital}), so the price is far more sensitive to PD than the capital is. Table~\ref{tab:groups} gives results by group: agriculture is the least priceable sector (42.0\% at a median rate of 25.1\%) and rural borrowers have a mean PD of 34.9\% against 22.5\% for urban ones, a median rate of 32.5\% and a priceable share of 39.0\% against 52.6\%.
+\begin{figure}[H]\centering\includegraphics[width=.92\textwidth]{figures/fig3_capital_rate.png}\caption{Capital requirement and RAROC rate against recalibrated PD.}\label{fig:capital}\end{figure}
+\begin{table}[H]\centering\tabsize\setlength{\tabcolsep}{3pt}\caption{Capital and pricing by group (Platt PD, corporate SME formula).}\label{tab:groups}
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{lrrrrrrrr}
+\toprule
+Group & $n$ & Mean PD (\%) & Observed (\%) & Mean $K$ (\%) & Tier 1 (BDT m) & Median rate (\%) & P75 rate (\%) & Priceable (\%) \\
+\midrule
+Agriculture & 205 & 29.5 & 28.8 & 9.87 & 31.2 & 25.1 & 56.8 & 42.0 \\
+Manufacturing & 337 & 23.9 & 24.3 & 9.46 & 57.5 & 21.5 & 45.1 & 51.0 \\
+Retail & 353 & 23.3 & 23.5 & 9.33 & 52.8 & 21.8 & 42.2 & 51.3 \\
+Services & 305 & 26.1 & 25.9 & 9.27 & 47.1 & 21.2 & 53.8 & 51.1 \\
+\midrule
+Barisal & 102 & 21.9 & 23.5 & 9.63 & 17.0 & 19.9 & 39.4 & 54.9 \\
+Chittagong & 234 & 23.8 & 23.5 & 9.43 & 37.1 & 22.5 & 41.4 & 48.7 \\
+Dhaka & 405 & 24.3 & 23.7 & 9.22 & 59.9 & 21.2 & 43.3 & 51.9 \\
+Khulna & 161 & 30.0 & 31.1 & 9.38 & 23.3 & 24.9 & 71.7 & 47.2 \\
+Rajshahi & 123 & 27.5 & 27.6 & 10.25 & 21.8 & 23.6 & 53.9 & 43.9 \\
+Rangpur & 90 & 26.6 & 26.7 & 9.05 & 15.4 & 22.1 & 53.8 & 48.9 \\
+Sylhet & 85 & 24.1 & 23.5 & 9.70 & 14.2 & 23.1 & 48.2 & 48.2 \\
+\midrule
+Rural & 264 & 34.9 & 35.2 & 9.51 & 30.4 & 32.5 & 101.6 & 39.0 \\
+Urban & 936 & 22.5 & 22.4 & 9.43 & 158.2 & 21.2 & 40.6 & 52.6 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}\end{table}
+
+\subsection{Sensitivity}
+The priceable share is 49.6\% in the base case. It rises by 7.5 points if LGD is 0.30 and falls by 5.8 points at 0.60; moving the hurdle to 5\% adds 3.2 points and to 25\% removes 3.3 (Table~\ref{tab:sens}, Figure~\ref{fig:sens}). The assumed ceiling matters more than either: at 18\% only 36.4\% are priceable and at 26\% 57.1\%. The risk free rate matters too: 53.6\% at 7\% and 43.8\% at 11\%.
+\begin{table}[H]\centering\tabsize\caption{Share priceable (\%) by LGD and hurdle, and by ceiling and risk free rate (Platt PD).}\label{tab:sens}
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{lrrrrr}
+\toprule
+LGD & $h$ = 5\% & $h$ = 10\% & $h$ = 15\% & $h$ = 20\% & $h$ = 25\% \\
+\midrule
+0.30 & 59.5 & 58.1 & 57.1 & 55.8 & 54.2 \\
+0.45 & 52.8 & 50.7 & 49.6 & 47.9 & 46.2 \\
+0.60 & 47.7 & 46.0 & 43.8 & 42.0 & 40.5 \\
+0.75 & 43.6 & 41.5 & 39.6 & 37.4 & 36.0 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}\vspace{4pt}\\\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{rrrrr}
+\toprule
+Ceiling (\%) & Priceable (\%) &  & Funding $r_f$ (\%) & Priceable (\%) \\
+\midrule
+18 & 36.4 &  & 7 & 53.6 \\
+20 & 43.8 &  & 9 & 49.6 \\
+22 & 49.6 &  & 11 & 43.8 \\
+24 & 53.6 &  &  &  \\
+26 & 57.1 &  &  &  \\
+30 & 62.3 &  &  &  \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}\end{table}
+\begin{figure}[H]\centering\includegraphics[width=.92\textwidth]{figures/fig4_sensitivity.png}\caption{Sensitivity of the priceable share.}\label{fig:sens}\end{figure}
+
+\subsection{Which Basel treatment applies?}
+Every borrower is below the Euro 1 million retail threshold, so on the Basel definitions these are retail exposures. Table~\ref{tab:treat} shows (the isotonic priceable share is unchanged across treatments because it can switch only at one of its 18 atoms) that moving from the corporate SME formula to the other retail formula lowers mean $K$ by 38.1\% (Platt; 39.5\% with isotonic) and total Tier 1 from BDT 189 to 117 million; the spread across defensible treatments is a factor of 1.6. The classification therefore matters more than the hurdle rate. Where a regulator or bank can choose among treatments the choice is a capital decision before it is a modelling one.
+\begin{table}[H]\centering\tabsize\setlength{\tabcolsep}{3pt}\caption{Regulatory treatment, under isotonic and Platt PD. Tier 1 in BDT million.}\label{tab:treat}
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{lrrrrrrr}
+\toprule
+Treatment & $K$ iso (\%) & Tier 1 iso & Priceable iso (\%) & $K$ Platt (\%) & Tier 1 Platt & Priceable Platt (\%) & Median rate Platt (\%) \\
+\midrule
+Corporate SME formula & 8.33 & 169.0 & 45.0 & 9.44 & 188.7 & 49.6 & 22.3 \\
+Other retail formula & 5.04 & 102.2 & 45.0 & 5.85 & 116.5 & 51.3 & 21.3 \\
+Standardised, 75\% RW & 6.00 & 116.5 & 45.0 & 6.00 & 116.5 & 52.0 & 21.2 \\
+Standardised, 100\% RW & 8.00 & 155.3 & 45.0 & 8.00 & 155.3 & 50.9 & 21.6 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}\end{table}
+
+\subsection{The definition of default}
+The Bangladeshi label is any missed payment; the Basel criterion is 90 days past due or unlikely to pay. With a conversion share $\phi$ of 0.5 the priceable share rises by 13.8 points and Tier 1 falls to BDT 171 million (Table~\ref{tab:dd}). This lever is larger than doubling the hurdle rate or reducing LGD from 0.45 to 0.30. We do not observe the narrower label, so the table is a sensitivity, not an estimate.
+\begin{table}[H]\centering\tabsize\caption{Default definition sensitivity (Platt PD, prior shift correction).}\label{tab:dd}
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{lrrrrr}
+\toprule
+Basel-qualifying share $\phi$ & Implied default rate (\%) & Mean $K$ (\%) & Tier 1 (BDT m) & Median rate (\%) & Priceable (\%) \\
+\midrule
+1.00 & 25.3 & 9.44 & 188.7 & 22.3 & 49.6 \\
+0.70 & 17.7 & 8.99 & 180.5 & 19.6 & 56.9 \\
+0.50 & 12.6 & 8.49 & 171.1 & 18.0 & 63.4 \\
+0.30 & 7.6 & 7.68 & 155.0 & 16.6 & 72.3 \\
+0.20 & 5.1 & 7.01 & 141.7 & 15.9 & 78.2 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}\end{table}
+
+\subsection{Collateral linked loss given default}
+The foundation LGD of 0.45 ignores collateral, yet default rates differ (38.0\% for low collateral against 18.6\% moderate and 19.5\% high). Linking LGD to collateral (0.60, 0.45, 0.30) leaves the portfolio total almost unchanged (priceable 49.9\%, Tier 1 BDT 190 million) but redistributes it sharply: 25.3\% of low collateral borrowers are priceable against 65.7\% of high collateral borrowers (Table~\ref{tab:lgd}). Realised recoveries are not observed in these data, so this too is a sensitivity.
+\begin{table}[H]\centering\tabsize\setlength{\tabcolsep}{3pt}\caption{Collateral linked LGD (Platt PD).}\label{tab:lgd}
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{llrrrrrr}
+\toprule
+LGD scheme & Collateral & $n$ & LGD & Default (\%) & Mean $K$ (\%) & Priceable (\%) & Median rate (\%) \\
+\midrule
+flat 0.45 & Low & 392 & 0.45 & 38.0 & 10.41 & 31.6 & 35.9 \\
+ & Moderate & 377 & 0.45 & 18.6 & 8.85 & 57.6 & 18.7 \\
+ & High & 431 & 0.45 & 19.5 & 9.08 & 58.9 & 19.3 \\
+ & ALL & 1200 & 0.45 & 25.2 & 9.44 & 49.6 & 22.3 \\
+collateral-linked (0.60/0.45/0.30) & Low & 392 & 0.60 & 38.0 & 13.88 & 25.3 & 43.2 \\
+ & Moderate & 377 & 0.45 & 18.6 & 8.85 & 57.6 & 18.7 \\
+ & High & 431 & 0.30 & 19.5 & 6.05 & 65.7 & 17.5 \\
+ & ALL & 1200 & 0.45 & 25.2 & 9.49 & 49.9 & 22.1 \\
+steeper (0.75/0.45/0.20) & Low & 392 & 0.75 & 38.0 & 17.35 & 19.9 & 50.5 \\
+ & Moderate & 377 & 0.45 & 18.6 & 8.85 & 57.6 & 18.7 \\
+ & High & 431 & 0.20 & 19.5 & 4.04 & 71.7 & 16.4 \\
+ & ALL & 1200 & 0.46 & 25.2 & 9.90 & 50.3 & 21.8 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}\end{table}
+
+\section{Results V: pricing regimes}\label{sec:regimes}
+Table~\ref{tab:regime} compares the flat 18\% regime with RAROC pricing. The flat regime lends to everyone and loses BDT 236 million once expected loss is netted. RAROC pricing, applied only to the priceable set, earns BDT 12.3 million (the hurdle return on capital) and lowers the default rate in the pool to 3.36\% in sample (95\% interval 2.1 to 4.4\%) and 3.54\% with nested recalibration.
+
+The decomposition in the last two rows is informative. Holding the nested screen fixed and charging the flat 18\% instead of the RAROC price leaves approval and default unchanged and gives a higher profit of BDT 25.8 million against 12.1 million, because the screened pool is safe enough that 18\% over earns relative to the RAROC rate. The fall in default is therefore entirely a property of the screen; the contribution of price differentiation is distributional, lower rates for the safest borrowers and higher rates for the marginal, and it costs the lender margin. Reporting the fall in default as a benefit of risk based pricing would mislead.
+\begin{table}[H]\centering\tabsize\setlength{\tabcolsep}{3pt}\caption{Pricing regimes (Platt PD).}\label{tab:regime}
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{lrrrrr}
+\toprule
+Regime & Approval (\%) & Default in pool (\%) & Volume (BDT m) & Expected loss (BDT m) & Profit (BDT m) \\
+\midrule
+Flat 18\% & 100.0 & 25.25 & 2,589 & 311.9 & $-$236.1 \\
+RAROC price, in-sample screen & 49.6 & 3.36 & 1,196 & 20.3 & 12.3 \\
+RAROC price, nested screen & 49.4 & 3.54 & 1,186 & 19.8 & 12.1 \\
+Flat 18\% price, nested screen & 49.4 & 3.54 & 1,186 & 19.8 & 25.8 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}\end{table}
+
+\section{Results VI: robustness to what we cannot observe}\label{sec:robust}
+\subsection{Take up and adverse selection}
+The counterfactual so far holds the pool fixed. Table~\ref{tab:take} lets take up fall with the rate and the accepted pool become riskier with the rate. The flat regime loses the same BDT 118 million in every case by construction (at 18\% take up is one half and the adverse selection factor is one); the informative result is that RAROC profit stays positive, between BDT 5.6 and 6.4 million, for every demand and adverse selection setting, though the simple demand curve is an assumption.
+\begin{table}[H]\centering\tabsize\caption{Take up and adverse selection (Platt PD).}\label{tab:take}
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{rrrrrr}
+\toprule
+Take-up slope $k$ & Adverse selection $\gamma$ & Flat profit (BDT m) & RAROC profit (BDT m) & RAROC volume (BDT m) & Default, RAROC take-up (\%) \\
+\midrule
+0.00 & 0.00 & $-$118.0 & 6.2 & 598 & 3.78 \\
+0.00 & 0.03 & $-$118.0 & 5.9 & 598 & 3.86 \\
+0.00 & 0.06 & $-$118.0 & 5.6 & 598 & 3.95 \\
+0.15 & 0.00 & $-$118.0 & 6.3 & 646 & 3.30 \\
+0.15 & 0.03 & $-$118.0 & 6.2 & 646 & 3.34 \\
+0.15 & 0.06 & $-$118.0 & 6.0 & 646 & 3.39 \\
+0.30 & 0.00 & $-$118.0 & 6.4 & 691 & 2.93 \\
+0.30 & 0.03 & $-$118.0 & 6.4 & 691 & 2.94 \\
+0.30 & 0.06 & $-$118.0 & 6.3 & 691 & 2.96 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}\end{table}
+
+\subsection{A downturn}
+Table~\ref{tab:down} scales default odds and LGD. Doubling default odds cuts the priceable share from 49.6\% to 38.2\% and the median rate rises sharply, but total Tier 1 moves little (BDT 189 to 194 million) because capital is concave in PD beyond a point. LGD at 0.55 raises Tier 1 to BDT 231 million. The static model understates procyclicality of access rather than of capital, which is the Stiglitz and Weiss channel under a ceiling and complements the capital procyclicality literature \citep{Repullo2014,Behn2016,Gordy2010}.
+\begin{table}[H]\centering\tabsize\caption{Downturn scenarios (Platt PD).}\label{tab:down}
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{lrrrrr}
+\toprule
+PD odds multiplier & LGD & Mean PD (\%) & Tier 1 (BDT m) & Priceable (\%) & Median rate (\%) \\
+\midrule
+1.0 & 0.45 & 25.3 & 188.7 & 49.6 & 22.3 \\
+1.0 & 0.55 & 25.3 & 230.6 & 45.8 & 24.2 \\
+1.5 & 0.45 & 29.7 & 193.0 & 42.8 & 25.9 \\
+1.5 & 0.55 & 29.7 & 235.9 & 38.9 & 28.5 \\
+2.0 & 0.45 & 33.1 & 194.2 & 38.2 & 29.3 \\
+2.0 & 0.55 & 33.1 & 237.4 & 35.0 & 32.7 \\
+3.0 & 0.45 & 38.2 & 193.2 & 32.8 & 36.0 \\
+3.0 & 0.55 & 38.2 & 236.1 & 29.5 & 40.9 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}\end{table}
+
+\subsection{Thresholded fairness}
+Calibration and AUC by group say little about decisions. Table~\ref{tab:fair} audits approval. The urban rural gap in approval is 13.5 points (interval 6.0 to 19.5); the ratio of rural to urban approval is 0.74 (0.63 to 0.88), with a point estimate below the 0.8 benchmark used in disparate impact practice although the interval spans it, and among borrowers who did not default the gap persists but only just excludes zero. The gap tracks the PD difference (34.9\% against 22.5\%), not miscalibration, which means a calibrated, accurate model still concentrates rationing on rural lending when a ceiling binds. Whether that is acceptable is a policy question; the guarantee below is one remedy.
+\begin{table}[H]\centering\tabsize\caption{Approval gaps under the RAROC screen with 95\% bootstrap intervals. Impact ratio is lowest over highest group approval.}\label{tab:fair}
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{lrrr}
+\toprule
+Attribute & Approval gap (pp) & Gap, good borrowers (pp) & Impact ratio \\
+\midrule
+Sector & 9.3 [4.2, 20.0] & 10.2 [4.6, 23.1] & 0.82 [0.63, 0.92] \\
+Division & 11.0 [6.9, 25.7] & 13.4 [8.9, 30.3] & 0.80 [0.59, 0.87] \\
+Location type & 13.5 [6.0, 19.5] & 6.9 [0.4, 14.4] & 0.74 [0.63, 0.88] \\
+Owner education & 5.4 [3.9, 16.4] & 6.7 [4.5, 19.1] & 0.90 [0.71, 0.92] \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}\end{table}
+
+\section{A priced policy remedy: partial credit guarantees}\label{sec:guarantee}
+Table~\ref{tab:guar} and Figure~\ref{fig:guar} price two designs. In the first a guarantee covers a share of loss, lowering effective LGD; each unit of expected outlay unlocks 1.7 to 3.1 units of additional credit. In the second the guarantee absorbs only unexpected loss, so the lender prices expected loss alone and holds no capital against the exposure. The priceable share becomes 57.5\% and incremental credit BDT 195 million, at zero expected fiscal outlay (the guarantor pays only in the tail). The second design is a stylised bound; it assumes the guarantor can bear tail risk at no premium and that moral hazard is absent.
+\begin{table}[H]\centering\tabsize\setlength{\tabcolsep}{3pt}\caption{Guarantee designs (Platt PD).}\label{tab:guar}
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{lrrrrrr}
+\toprule
+Design & Mean $K$ (\%) & Median rate (\%) & Priceable (\%) & Credit (BDT m) & Incremental (BDT m) & Expected outlay (BDT m) \\
+\midrule
+Coverage 0\% & 9.44 & 22.3 & 49.6 & 1,196 & 0 & 0.0 \\
+Coverage 20\% & 7.56 & 20.7 & 53.6 & 1,300 & 103 & 62.4 \\
+Coverage 40\% & 5.67 & 19.0 & 58.8 & 1,445 & 249 & 124.8 \\
+Coverage 50\% & 4.72 & 18.2 & 62.3 & 1,540 & 344 & 155.9 \\
+Coverage 60\% & 3.78 & 17.3 & 65.8 & 1,637 & 441 & 187.1 \\
+Coverage 80\% & 1.89 & 15.7 & 77.7 & 1,980 & 784 & 249.5 \\
+Unexpected-loss only & 0.00 & 19.5 & 57.5 & 1,392 & 195 & 0.0 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}\end{table}
+\begin{figure}[H]\centering\includegraphics[width=.92\textwidth]{figures/fig5_guarantee.png}\caption{Access and credit under guarantees.}\label{fig:guar}\end{figure}
+
+\section{Replication on five public data sets}\label{sec:external}
+Table~\ref{tab:ext} applies the same pipeline (balanced weight logistic regression, five fold out of fold, Platt and isotonic recalibration, IRB capital with the other retail function for consumers and the corporate function for firms, unit exposure, same cost parameters) to five data sets. The balanced weight score overstates mean default by a factor of 1.0 (Australia, where the classes are nearly balanced) to 8.3 (Poland, where defaults are 4.7\% of firms), so the distortion scales with class imbalance; Platt recalibration lowers the Brier score by 1 to 77\%. The priceable share collapses when the raw score is used as a probability whenever the data are imbalanced. The isotonic artefact depends on sample size: with Taiwan data subsampled to 500 borrowers there are 11 atoms against 38 at 30{,}000, and the priceable share under isotonic is 40\% against 28\% under Platt (Table~\ref{tab:isn}, Figure~\ref{fig:isn}). Where subgroup attributes exist the dispersion of calibration across groups is again compared with a perfectly calibrated null (Table~\ref{tab:extnull}). Dispersion of calibration in the large is within noise in all three, but with 150{,}000 borrowers the dispersion of calibration slopes across age bands is clearly real (range 1.39 against a null 95th percentile of 0.15). Subgroup slope heterogeneity is therefore detectable when samples are large and cannot be excluded at the Bangladeshi sample size. These data are not SME loans and have no loss given default, so we draw conclusions only about calibration and capital mechanics.
+\begin{table}[H]\centering\tabsize\setlength{\tabcolsep}{2.5pt}\caption{Replication across five countries. ``Balanced'' and ``Unweighted'' refer to the training weights.}\label{tab:ext}
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{lrrrrrrr}
+\toprule
+Dataset & $n$ & Default (\%) & Balanced raw PD (\%) & Unweighted raw PD (\%) & Brier gain, Platt (\%) & Priceable, raw (\%) & Priceable, Platt (\%) \\
+\midrule
+Germany (German credit) & 1,000 & 30.0 & 43.2 & 29.9 & 12.2 & 18.7 & 27.9 \\
+Taiwan (card default) & 30,000 & 22.1 & 45.7 & 22.1 & 29.8 & 2.5 & 29.3 \\
+United States (Give Me Some Credit) & 150,000 & 6.7 & 41.3 & 6.7 & 69.5 & 0.4 & 93.9 \\
+Poland (listed firms, bankruptcy) & 10,503 & 4.7 & 39.1 & 4.7 & 77.3 & 10.4 & 95.8 \\
+Australia (credit approval) & 690 & 44.5 & 46.6 & 44.6 & 1.0 & 40.4 & 41.2 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}\end{table}
+\begin{table}[H]\centering\tabsize\caption{Isotonic atoms and capital in the replication data sets (balanced weights).}\label{tab:ext2}
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{lrr}
+\toprule
+Dataset & Isotonic atoms & Tier 1, isotonic vs Platt (\%) \\
+\midrule
+Germany (German credit) & 15 & $-$4.0 \\
+Taiwan (card default) & 38 & $-$5.0 \\
+United States (Give Me Some Credit) & 74 & $-$2.4 \\
+Poland (listed firms, bankruptcy) & 29 & $-$2.8 \\
+Australia (credit approval) & 21 & $-$4.2 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}\end{table}
+\begin{table}[H]\centering\tabsize\caption{Isotonic recalibration against sample size (Taiwan data, ten subsamples per size).}\label{tab:isn}
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{lrrrrr}
+\toprule
+Sample size & Isotonic atoms & At floor (\%) & Tier 1 ratio, iso / Platt & Priceable iso (\%) & Priceable Platt (\%) \\
+\midrule
+500 & 11.1 & 2.28 & 0.925 & 39.6 & 27.9 \\
+1,000 & 16.7 & 1.07 & 0.939 & 36.4 & 28.7 \\
+2,000 & 18.9 & 1.19 & 0.943 & 31.0 & 28.4 \\
+5,000 & 26.7 & 0.18 & 0.946 & 42.4 & 29.7 \\
+30,000 & 38.0 & 0.03 & 0.950 & 22.2 & 29.3 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}\end{table}
+\begin{figure}[H]\centering\includegraphics[width=.92\textwidth]{figures/fig7_isotonic_n.png}\caption{The isotonic artefact shrinks with sample size.}\label{fig:isn}\end{figure}
+\begin{table}[H]\centering\tabsize\caption{Subgroup dispersion against a calibrated null in the replication data sets.}\label{tab:extnull}
+\begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{lrrrrrrr}
+\toprule
+Dataset & Subgroups & Slope range & Null 95th pct & $p$ & CIL range (pp) & Null 95th pct (pp) & $p$ \\
+\midrule
+Germany (German credit) & 11 & 0.53 & 1.18 & 0.580 & 4.4 & 15.9 & 0.985 \\
+Taiwan (card default) & 12 & 1.30 & 2.51 & 0.290 & 3.2 & 12.2 & 0.800 \\
+United States (Give Me Some Credit) & 4 & 1.39 & 0.15 & 0.000 & 0.3 & 0.5 & 0.460 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}\end{table}
+
+\section{Discussion}\label{sec:disc}
+\paragraph{What generalises.} The calibration findings replicate across five countries: class balanced scores are not probabilities, and a step function recalibrator on small samples produces atoms that the capital formula amplifies. The priority is to report calibration, the recalibrator and its granularity whenever a probability enters a non linear formula. The Bangladesh specific policy results (rationing under a ceiling, rural approval, guarantees) generalise to the extent that a rate ceiling binds elsewhere.
+
+\paragraph{What does not survive.} A natural claim, that machine learning credit models are miscalibrated across demographic groups and that this drives unfair pricing, is not supported by the Bangladeshi data. The pooled miscalibration is uniform and removed by one recalibration, and group dispersion is within sampling noise. This is a statement about power as much as about the model: in the 150{,}000 borrower United States sample slope heterogeneity across age bands is clearly present. Group differences in approval arise from group differences in risk. Reviewers should be wary of subgroup calibration claims drawn from samples of a few hundred.
+
+\paragraph{Selection.} Selection is the larger threat. The truncation experiment shows that a model trained on screened applicants will under predict risk for the applicants it has never seen, with ranking intact. A lender extending credit to a wider population, for example through a guarantee, should treat its PD as a lower bound.
+
+\paragraph{Policy.} Under a binding ceiling pricing becomes screening. The default rate improvement comes from refusing loans, not from charging for risk, and its distributional cost falls on rural and agricultural borrowers. Policy makers can address this through ceilings, treatment of exposures as retail, and guarantees, each of which we price.
+
+\paragraph{Limitations.} (i) The Bangladeshi data are a single sample of 1{,}200 with an outcome that is wider than the Basel default; provenance is described in Section~\ref{sec:data}. (ii) LGD is assumed, not estimated; recoveries are unobserved. (iii) The cost of funds, the hurdle and the ceiling are stylised. (iv) There are no rejected applicant outcomes, so selection is sized by experiment, not corrected. (v) Take up, adverse selection and downturn use simple parametric forms. (vi) Fairness is audited on approval, not on welfare or on protected attributes beyond those recorded. (vii) The replication data sets are not SME loans. (viii) The analysis is static; there is no vintage or panel dimension. (ix) Explainability, covered in companion work \citep{Companion2026,CompanionFed2026}, is out of scope.
+
+\section{Conclusion}\label{sec:conc}
+A probability of default has economic content only after it passes through capital, price and a decision. On Bangladeshi SME data and five public data sets, calibration is the dominant modelling choice, the recalibrator's granularity matters, subgroup miscalibration is mostly noise at feasible sample sizes but can be bounded, selection bias is the more serious data limitation, and regulatory treatment and default definition move capital by amounts comparable to or larger than the hurdle. Under a binding ceiling risk based pricing is a screen, and its distributional costs can be priced and partly offset by a guarantee.
+
+\section*{Declaration on generative AI}
+Generative AI tools were used for coding assistance, language editing and analysis scripting. All research design, interpretation and conclusions are the authors', and the authors take full responsibility for the content.
+
+\section*{Data and code availability}
+The Bangladeshi data, all code, every result file and the manuscript source are available at \url{https://github.com/shoumya-chy/sme-credit-risk-capital-pricing}. The five replication data sets are public (OpenML and the UCI repository) and are downloaded by the replication script.
+
+\bibliography{references}
+\end{document}

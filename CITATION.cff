@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+message: "If you use this code, data or paper, please cite it as below."
+title: "From Scores to Capital and Prices: How Calibration, Selection and Regulatory Treatment Move Basel III Outcomes in SME Lending"
+type: software
+authors:
+  - family-names: Das
+    given-names: Anmita
+    affiliation: "University of Melbourne"
+  - family-names: Chowdhury
+    given-names: Shoumya
+    affiliation: "University of Melbourne"
+repository-code: "https://github.com/shoumya-chy/sme-credit-risk-capital-pricing"
+license: MIT
+date-released: 2026-10-06
+keywords: [credit scoring, calibration, Basel III, RAROC, SME finance, Bangladesh, selection bias]
