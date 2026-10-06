@@ -9,7 +9,7 @@ authors:
   - family-names: Chowdhury
     given-names: Shoumya
     affiliation: "University of Melbourne"
-repository-code: "https://github.com/shoumya-chy/sme-credit-risk-capital-pricing"
+repository-code: "https://github.com/shoumyac/sme-credit-risk-capital-pricing"
 license: MIT
 date-released: 2026-10-06
 keywords: [credit scoring, calibration, Basel III, RAROC, SME finance, Bangladesh, selection bias]

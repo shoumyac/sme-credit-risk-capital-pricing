@@ -4,6 +4,7 @@
 
 - **Size:** 1,200 applications, 2022 to 2023. 303 missed at least one scheduled payment in the 12 months after disbursement (25.25%).
 - **Source:** BASIC Bank Limited and Bangladesh Bank. The research was permitted by the Ministry of Finance of Bangladesh, and that permission was shown to the banks before the data were released.
+- **Fields:** all columns, including the free-text descriptions and the outcome, were supplied by the banks.
 - **Privacy:** the research extract has no personal identifiers.
 - **Sharing:** the authors confirm the data can be shared publicly; it is released in `data/bangladesh_sme_1200_records.csv` under CC BY 4.0.
 - **Column definitions:** [DATA_DICTIONARY.md](../data/DATA_DICTIONARY.md).

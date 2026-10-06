@@ -1,7 +1,7 @@
 # Data dictionary: `bangladesh_sme_1200_records.csv`
 
 1,200 SME loan applications, Bangladesh, 2022 to 2023. One row per application. No missing values.
-Source: BASIC Bank Limited and Bangladesh Bank, obtained for this research with permission from the Ministry of Finance of Bangladesh. The research extract contains no personal identifiers.
+Source: BASIC Bank Limited and Bangladesh Bank, obtained for this research with permission from the Ministry of Finance of Bangladesh. All columns, including the free-text descriptions and the outcome, were supplied by the banks. The research extract contains no personal identifiers.
 
 Descriptions below follow the column names as supplied; where a definition is not documented in the source we say so rather than guess.
 

@@ -61,7 +61,7 @@ Full numbers, intervals and caveats are in the paper and in [docs/04-Results-Gui
 ## Quick start
 
 ```bash
-git clone https://github.com/shoumya-chy/sme-credit-risk-capital-pricing.git
+git clone https://github.com/shoumyac/sme-credit-risk-capital-pricing.git
 cd sme-credit-risk-capital-pricing
 python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
